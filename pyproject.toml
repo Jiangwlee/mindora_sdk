@@ -1,0 +1,195 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "mindora-sdk"
+version = "0.1.0"
+description = "AI基础设施统一SDK，为多个AI应用提供统一的基础服务接口"
+authors = [
+    {name = "Mindora Team", email = "team@mindora.ai"}
+]
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.10"
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: System :: Systems Administration",
+    "Topic :: Database",
+]
+keywords = ["ai", "infrastructure", "sdk", "database", "storage", "search"]
+
+dependencies = [
+    "fastapi>=0.104.0",
+    "sqlmodel>=0.0.14",
+    "psycopg2-binary>=2.9.7",
+    "redis>=5.0.0",
+    "minio>=7.2.0",
+    "pika>=1.3.2",
+    "elasticsearch>=8.11.0",
+    "qdrant-client>=1.7.0",
+    "python-consul>=1.1.0",
+    "pydantic>=2.5.0",
+    "pydantic-settings>=2.1.0",
+    "httpx>=0.25.0",
+    "tenacity>=8.2.3",
+    "structlog>=23.2.0",
+    "python-multipart>=0.0.6",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.4.0",
+    "pytest-asyncio>=0.21.0",
+    "pytest-cov>=4.1.0",
+    "black>=23.12.0",
+    "ruff>=0.1.8",
+    "mypy>=1.8.0",
+    "pre-commit>=3.6.0",
+    "httpx>=0.25.0",
+]
+test = [
+    "pytest>=7.4.0",
+    "pytest-asyncio>=0.21.0",
+    "pytest-cov>=4.1.0",
+    "testcontainers>=3.7.0",
+    "faker>=21.0.0",
+]
+docs = [
+    "mkdocs>=1.5.3",
+    "mkdocs-material>=9.4.0",
+    "mkdocstrings[python]>=0.24.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/mindora/mindora-sdk"
+Repository = "https://github.com/mindora/mindora-sdk"
+Documentation = "https://mindora-sdk.readthedocs.io"
+"Bug Reports" = "https://github.com/mindora/mindora-sdk/issues"
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "/mindora_sdk",
+    "/README.md",
+    "/LICENSE",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["mindora_sdk"]
+
+# Ruff配置
+[tool.ruff]
+target-version = "py310"
+line-length = 88
+select = [
+    "E",  # pycodestyle errors
+    "W",  # pycodestyle warnings
+    "F",  # pyflakes
+    "I",  # isort
+    "B",  # flake8-bugbear
+    "C4", # flake8-comprehensions
+    "UP", # pyupgrade
+    "N",  # pep8-naming
+    "S",  # flake8-bandit
+    "T20", # flake8-print
+    "SIM", # flake8-simplify
+    "LOG", # flake8-logging
+]
+ignore = [
+    "E501",   # line too long, handled by black
+    "B008",   # do not perform function calls in argument defaults
+    "S101",   # use of assert detected
+    "S104",   # hardcoded bind all interfaces
+    "T201",   # print found
+    "B904",   # raise ... from ... 
+]
+unfixable = ["B"]
+
+[tool.ruff.per-file-ignores]
+"tests/**/*" = ["S101", "S106", "S608"]
+"examples/**/*" = ["T201", "S106"]
+"scripts/**/*" = ["T201", "S602", "S603", "S605", "S607"]
+
+[tool.ruff.isort]
+known-first-party = ["mindora_sdk"]
+force-sort-within-sections = true
+
+[tool.ruff.flake8-naming]
+classmethod-decorators = ["classmethod"]
+
+# MyPy配置
+[tool.mypy]
+python_version = "3.10"
+check_untyped_defs = true
+disallow_any_generics = true
+disallow_incomplete_defs = true
+disallow_untyped_defs = true
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_return_any = true
+strict_equality = true
+show_error_codes = true
+
+[[tool.mypy.overrides]]
+module = [
+    "pika.*",
+    "minio.*",
+    "consul.*",
+    "qdrant_client.*",
+    "testcontainers.*",
+]
+ignore_missing_imports = true
+
+# Pytest配置
+[tool.pytest.ini_options]
+minversion = "7.0"
+addopts = [
+    "-ra",
+    "--strict-markers",
+    "--strict-config",
+    "--cov=mindora_sdk",
+    "--cov-report=term-missing",
+    "--cov-report=html",
+    "--cov-fail-under=80",
+]
+testpaths = ["tests"]
+python_files = ["test_*.py", "*_test.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "integration: marks tests as integration tests",
+    "unit: marks tests as unit tests",
+]
+
+# Coverage配置
+[tool.coverage.run]
+source = ["mindora_sdk"]
+omit = [
+    "tests/*",
+    "examples/*",
+    "scripts/*",
+    "mindora_sdk/*/migrations/*",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "if self.debug:",
+    "if settings.DEBUG",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if 0:",
+    "if __name__ == .__main__.:",
+    "class .*\\bProtocol\\):",
+    "@(abc\\.)?abstractmethod",
+]
