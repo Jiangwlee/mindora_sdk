@@ -1,0 +1,521 @@
+version: '3.8'
+
+# 生产环境配置 - 安全性和稳定性优先
+# 特点：专用数据卷、严格资源限制、安全配置、监控完整
+
+services:
+  # 数据库服务 - 生产配置
+  postgres:
+    image: postgres:16.4
+    container_name: mindora_postgres_prod
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_MAX_CONNECTIONS: ${POSTGRES_MAX_CONNECTIONS:-200}
+      POSTGRES_SHARED_BUFFERS: ${POSTGRES_SHARED_BUFFERS:-512MB}
+      POSTGRES_EFFECTIVE_CACHE_SIZE: ${POSTGRES_EFFECTIVE_CACHE_SIZE:-2GB}
+      POSTGRES_WAL_BUFFERS: 16MB
+      POSTGRES_CHECKPOINT_COMPLETION_TARGET: 0.9
+    ports:
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"  # 仅本地访问
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ../init/postgres:/docker-entrypoint-initdb.d:ro
+      - ../configs/postgres/postgresql.conf:/etc/postgresql/postgresql.conf:ro
+    networks:
+      - mindora_prod_network
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: '1.0'
+        reservations:
+          memory: 1G
+          cpus: '0.5'
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "100m"
+        max-file: "5"
+
+  # Redis缓存 - 生产配置
+  redis:
+    image: redis:7.4-alpine
+    container_name: mindora_redis_prod
+    command: |
+      redis-server --requirepass ${REDIS_PASSWORD}
+      --maxmemory ${REDIS_MAXMEMORY:-1024mb}
+      --maxmemory-policy ${REDIS_MAXMEMORY_POLICY:-allkeys-lru}
+      --appendonly yes
+      --appendfsync everysec
+      --save 900 1 --save 300 10 --save 60 10000
+      --tcp-keepalive 300
+      --timeout 0
+    ports:
+      - "127.0.0.1:${REDIS_PORT:-6379}:6379"  # 仅本地访问
+    volumes:
+      - redis_data:/data
+      - ../configs/redis/redis.conf:/usr/local/etc/redis/redis.conf:ro
+    networks:
+      - mindora_prod_network
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 1.5G
+          cpus: '0.5'
+        reservations:
+          memory: 512M
+          cpus: '0.25'
+    healthcheck:
+      test: ["CMD", "redis-cli", "auth", "${REDIS_PASSWORD}", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "3"
+
+  # MinIO对象存储 - 生产配置
+  minio:
+    image: minio/minio:RELEASE.2025-07-23T15-54-02Z
+    container_name: mindora_minio_prod
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+      MINIO_SERVER_URL: ${MINIO_SERVER_URL}
+      MINIO_BROWSER_REDIRECT_URL: ${MINIO_BROWSER_REDIRECT_URL}
+      MINIO_COMPRESSION_ENABLE: "on"
+      MINIO_COMPRESSION_EXTENSIONS: ".pdf,.doc,.docx,.ppt,.pptx"
+    ports:
+      - "127.0.0.1:${MINIO_API_PORT:-9000}:9000"  # 仅本地访问API
+      - "127.0.0.1:${MINIO_CONSOLE_PORT:-9001}:9001"  # 仅本地访问控制台
+    volumes:
+      - minio_data:/data
+      - ../configs/minio/certs:/root/.minio/certs:ro
+    networks:
+      - mindora_prod_network
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '0.5'
+        reservations:
+          memory: 512M
+          cpus: '0.25'
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 60s
+      timeout: 20s
+      retries: 3
+      start_period: 60s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "100m"
+        max-file: "5"
+
+  # RabbitMQ消息队列 - 生产配置
+  rabbitmq:
+    image: rabbitmq:4.1-management
+    container_name: mindora_rabbitmq_prod
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS}
+      RABBITMQ_ERLANG_COOKIE: ${RABBITMQ_ERLANG_COOKIE}
+      RABBITMQ_VM_MEMORY_HIGH_WATERMARK: 0.6
+      RABBITMQ_DISK_FREE_LIMIT: 2GB
+    ports:
+      - "127.0.0.1:${RABBITMQ_AMQP_PORT:-5672}:5672"  # 仅本地访问AMQP
+      - "127.0.0.1:${RABBITMQ_MANAGEMENT_PORT:-15672}:15672"  # 仅本地访问管理界面
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+      - ../configs/rabbitmq/enabled_plugins:/etc/rabbitmq/enabled_plugins:ro
+      - ../configs/rabbitmq/rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf:ro
+    networks:
+      - mindora_prod_network
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '0.5'
+        reservations:
+          memory: 512M
+          cpus: '0.25'
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 60s
+      timeout: 30s
+      retries: 3
+      start_period: 120s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "100m"
+        max-file: "5"
+
+  # Elasticsearch搜索引擎 - 生产配置
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.19.2
+    container_name: mindora_elasticsearch_prod
+    environment:
+      - discovery.type=single-node
+      - cluster.name=${ELASTIC_CLUSTER_NAME:-mindora-prod-cluster}
+      - node.name=${ELASTIC_NODE_NAME:-mindora-prod-node}
+      - xpack.security.enabled=${ELASTIC_SECURITY_ENABLED:-true}
+      - ELASTIC_USERNAME=${ELASTIC_USERNAME:-elastic}
+      - ELASTIC_PASSWORD=${ELASTIC_PASSWORD}
+      - "ES_JAVA_OPTS=${ES_JAVA_OPTS:--Xms2g -Xmx2g}"
+      - bootstrap.memory_lock=true
+      - cluster.routing.allocation.disk.watermark.low=85%
+      - cluster.routing.allocation.disk.watermark.high=90%
+      - cluster.routing.allocation.disk.watermark.flood_stage=95%
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+      nofile:
+        soft: 65536
+        hard: 65536
+    ports:
+      - "127.0.0.1:${ELASTICSEARCH_HTTP_PORT:-9200}:9200"  # 仅本地访问
+    volumes:
+      - elasticsearch_data:/usr/share/elasticsearch/data
+      - ../configs/elasticsearch/elasticsearch.yml:/usr/share/elasticsearch/config/elasticsearch.yml:ro
+    networks:
+      - mindora_prod_network
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 3G
+          cpus: '1.5'
+        reservations:
+          memory: 2G
+          cpus: '1.0'
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f -u ${ELASTIC_USERNAME:-elastic}:${ELASTIC_PASSWORD} http://localhost:9200/_cluster/health || exit 1"]
+      interval: 60s
+      timeout: 30s
+      retries: 3
+      start_period: 120s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "200m"
+        max-file: "5"
+
+  # Qdrant向量数据库 - 生产配置
+  qdrant:
+    image: qdrant/qdrant:v1.15.3
+    container_name: mindora_qdrant_prod
+    environment:
+      QDRANT__SERVICE__HTTP_PORT: 6333
+      QDRANT__SERVICE__GRPC_PORT: 6334
+      QDRANT__SERVICE__API_KEY: ${QDRANT_API_KEY}
+      QDRANT__CLUSTER__ENABLED: false
+      QDRANT__STORAGE__PERFORMANCE__MAX_SEARCH_THREADS: 4
+    ports:
+      - "127.0.0.1:${QDRANT_PORT:-6333}:6333"  # 仅本地访问
+    volumes:
+      - qdrant_data:/qdrant/storage
+      - ../configs/qdrant/config.yaml:/qdrant/config/production.yaml:ro
+    networks:
+      - mindora_prod_network
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: '1.0'
+        reservations:
+          memory: 1G
+          cpus: '0.5'
+    healthcheck:
+      test: ["CMD", "curl", "-f", "-H", "api-key: ${QDRANT_API_KEY}", "http://localhost:6333/health"]
+      interval: 60s
+      timeout: 30s
+      retries: 3
+      start_period: 60s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "100m"
+        max-file: "5"
+
+  # Consul服务发现 - 生产配置
+  consul:
+    image: hashicorp/consul:1.19
+    container_name: mindora_consul_prod
+    command: consul agent -server -bootstrap-expect=1 -client=0.0.0.0 -ui -data-dir=/consul/data -config-dir=/consul/config
+    environment:
+      CONSUL_BIND_INTERFACE: eth0
+      CONSUL_ENCRYPT: ${CONSUL_ENCRYPT_KEY}
+      CONSUL_LOCAL_CONFIG: |
+        {
+          "datacenter": "dc1",
+          "data_dir": "/consul/data",
+          "log_level": "WARN",
+          "server": true,
+          "ui_config": {
+            "enabled": true
+          },
+          "connect": {
+            "enabled": true
+          },
+          "ports": {
+            "grpc": 8502
+          }
+        }
+    ports:
+      - "127.0.0.1:${CONSUL_HTTP_PORT:-8500}:8500"  # 仅本地访问
+    volumes:
+      - consul_data:/consul/data
+      - ../configs/consul:/consul/config:ro
+    networks:
+      - mindora_prod_network
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.5'
+        reservations:
+          memory: 256M
+          cpus: '0.25'
+    healthcheck:
+      test: ["CMD", "consul", "members"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "3"
+
+  # Prometheus监控 - 生产配置
+  prometheus:
+    image: prom/prometheus:v3.5.0
+    container_name: mindora_prometheus_prod
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=${PROMETHEUS_RETENTION_TIME:-90d}'
+      - '--storage.tsdb.retention.size=${PROMETHEUS_RETENTION_SIZE:-50GB}'
+      - '--web.enable-lifecycle'
+      - '--web.enable-admin-api'
+      - '--storage.tsdb.wal-compression'
+    ports:
+      - "127.0.0.1:${PROMETHEUS_PORT:-9090}:9090"  # 仅本地访问
+    volumes:
+      - prometheus_data:/prometheus
+      - ../configs/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ../configs/prometheus/rules:/etc/prometheus/rules:ro
+    networks:
+      - mindora_prod_network
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: '1.0'
+        reservations:
+          memory: 1G
+          cpus: '0.5'
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:9090/-/healthy"]
+      interval: 60s
+      timeout: 30s
+      retries: 3
+      start_period: 60s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "100m"
+        max-file: "5"
+
+  # Grafana可视化 - 生产配置
+  grafana:
+    image: grafana/grafana:11.3.0
+    container_name: mindora_grafana_prod
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD}
+      GF_SMTP_ENABLED: ${GRAFANA_SMTP_ENABLED:-true}
+      GF_SMTP_HOST: ${GRAFANA_SMTP_HOST}
+      GF_SMTP_USER: ${GRAFANA_SMTP_USER}
+      GF_SMTP_PASSWORD: ${GRAFANA_SMTP_PASSWORD}
+      GF_LOG_LEVEL: ${LOG_LEVEL:-warn}
+      GF_ANALYTICS_REPORTING_ENABLED: false
+      GF_ANALYTICS_CHECK_FOR_UPDATES: false
+      GF_SECURITY_DISABLE_GRAVATAR: true
+      GF_USERS_ALLOW_SIGN_UP: false
+      GF_SECURITY_COOKIE_SECURE: true
+      GF_SECURITY_COOKIE_SAMESITE: strict
+    ports:
+      - "127.0.0.1:${GRAFANA_PORT:-3000}:3000"  # 仅本地访问
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ../configs/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ../configs/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    networks:
+      - mindora_prod_network
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.5'
+        reservations:
+          memory: 256M
+          cpus: '0.25'
+    depends_on:
+      - prometheus
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:3000/api/health || exit 1"]
+      interval: 60s
+      timeout: 30s
+      retries: 3
+      start_period: 60s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "100m"
+        max-file: "5"
+
+  # Nginx反向代理 - 生产配置
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: mindora_nginx_prod
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ../configs/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ../configs/nginx/conf.d:/etc/nginx/conf.d:ro
+      - ../configs/nginx/ssl:/etc/nginx/ssl:ro
+      - nginx_logs:/var/log/nginx
+    networks:
+      - mindora_prod_network
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: '0.5'
+        reservations:
+          memory: 128M
+          cpus: '0.25'
+    depends_on:
+      - grafana
+      - consul
+    healthcheck:
+      test: ["CMD", "nginx", "-t"]
+      interval: 60s
+      timeout: 30s
+      retries: 3
+      start_period: 30s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "100m"
+        max-file: "5"
+
+# 生产网络配置
+networks:
+  mindora_prod_network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.22.0.0/16
+    driver_opts:
+      com.docker.network.bridge.name: mindora-prod-br0
+
+# 生产数据卷配置
+volumes:
+  postgres_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${MINDORA_DATA_ROOT}/postgres
+
+  redis_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${MINDORA_DATA_ROOT}/redis
+
+  minio_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${MINDORA_DATA_ROOT}/minio
+
+  rabbitmq_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${MINDORA_DATA_ROOT}/rabbitmq
+
+  elasticsearch_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${MINDORA_DATA_ROOT}/elasticsearch
+
+  qdrant_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${MINDORA_DATA_ROOT}/qdrant
+
+  consul_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${MINDORA_DATA_ROOT}/consul
+
+  prometheus_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${MINDORA_DATA_ROOT}/prometheus
+
+  grafana_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${MINDORA_DATA_ROOT}/grafana
+
+  nginx_logs:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${MINDORA_DATA_ROOT}/nginx/logs

@@ -128,15 +128,40 @@ publish: build check-package
 
 # === 基础设施管理 ===
 
+# 初始化基础设施环境（首次运行）
+infra-setup:
+    @echo "🏗️ 初始化 Mindora 基础设施环境..."
+    ./infrastructure/scripts/setup.sh
+
 # 启动开发环境基础设施
 infra-up:
     @echo "🐳 启动开发环境基础设施..."
-    cd infrastructure/docker && docker-compose -f docker-compose.dev.yml up -d
+    cd infrastructure/docker && docker compose -f docker-compose.dev.yml up -d
+
+# 启动测试环境基础设施
+infra-up-test:
+    @echo "🧪 启动测试环境基础设施..."
+    cd infrastructure/docker && docker compose -f docker-compose.test.yml up -d
+
+# 启动生产环境基础设施
+infra-up-prod:
+    @echo "🚀 启动生产环境基础设施..."
+    cd infrastructure/docker && docker compose -f docker-compose.prod.yml up -d
 
 # 停止基础设施
 infra-down:
     @echo "🛑 停止基础设施..."
-    cd infrastructure/docker && docker-compose -f docker-compose.dev.yml down
+    cd infrastructure/docker && docker compose -f docker-compose.dev.yml down
+
+# 停止测试环境基础设施
+infra-down-test:
+    @echo "🛑 停止测试环境基础设施..."
+    cd infrastructure/docker && docker compose -f docker-compose.test.yml down
+
+# 停止生产环境基础设施
+infra-down-prod:
+    @echo "🛑 停止生产环境基础设施..."
+    cd infrastructure/docker && docker compose -f docker-compose.prod.yml down
 
 # 重启基础设施
 infra-restart:
@@ -147,18 +172,36 @@ infra-restart:
 # 查看基础设施状态
 infra-status:
     @echo "📊 基础设施状态..."
-    cd infrastructure/docker && docker-compose -f docker-compose.dev.yml ps
+    cd infrastructure/docker && docker compose -f docker-compose.dev.yml ps
 
 # 查看基础设施日志
 infra-logs service="":
     @echo "📋 查看基础设施日志..."
-    cd infrastructure/docker && docker-compose -f docker-compose.dev.yml logs {{service}}
+    cd infrastructure/docker && docker compose -f docker-compose.dev.yml logs {{service}}
 
-# 创建基础设施数据目录
-infra-init:
-    @echo "📁 创建基础设施数据目录..."
-    mkdir -p ~/.mindora/infrastructure/{postgres,redis,minio,rabbitmq,elasticsearch,qdrant,consul,prometheus,grafana}
-    @echo "✅ 数据目录创建完成"
+# 验证基础设施配置
+infra-validate:
+    @echo "🔍 验证基础设施配置..."
+    cd infrastructure/docker && docker compose -f docker-compose.dev.yml config --quiet
+    cd infrastructure/docker && docker compose -f docker-compose.test.yml config --quiet
+    cd infrastructure/docker && docker compose -f docker-compose.prod.yml config --quiet
+    @echo "✅ 所有配置验证通过"
+
+# 健康检查
+infra-health:
+    @echo "🏥 执行基础设施健康检查..."
+    ./infrastructure/scripts/health-check.sh
+
+# 拉取最新镜像
+infra-pull:
+    @echo "📥 拉取最新Docker镜像..."
+    cd infrastructure/docker && docker compose -f docker-compose.dev.yml pull
+
+# 清理未使用的资源
+infra-cleanup:
+    @echo "🧹 清理Docker资源..."
+    docker system prune -f
+    docker volume prune -f
 
 # === 文档 ===
 

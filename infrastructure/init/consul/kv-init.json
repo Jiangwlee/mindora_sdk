@@ -1,0 +1,130 @@
+[
+  {
+    "key": "mindora/config/global/environment",
+    "value": "development"
+  },
+  {
+    "key": "mindora/config/global/version",
+    "value": "1.0.0"
+  },
+  {
+    "key": "mindora/config/database/host",
+    "value": "postgres"
+  },
+  {
+    "key": "mindora/config/database/port",
+    "value": "5432"
+  },
+  {
+    "key": "mindora/config/database/name",
+    "value": "mindora_dev"
+  },
+  {
+    "key": "mindora/config/database/max_connections",
+    "value": "100"
+  },
+  {
+    "key": "mindora/config/redis/host",
+    "value": "redis"
+  },
+  {
+    "key": "mindora/config/redis/port",
+    "value": "6379"
+  },
+  {
+    "key": "mindora/config/redis/default_ttl",
+    "value": "3600"
+  },
+  {
+    "key": "mindora/config/minio/endpoint",
+    "value": "http://minio:9000"
+  },
+  {
+    "key": "mindora/config/minio/default_bucket",
+    "value": "mindora-default"
+  },
+  {
+    "key": "mindora/config/rabbitmq/host",
+    "value": "rabbitmq"
+  },
+  {
+    "key": "mindora/config/rabbitmq/port",
+    "value": "5672"
+  },
+  {
+    "key": "mindora/config/elasticsearch/host",
+    "value": "elasticsearch"
+  },
+  {
+    "key": "mindora/config/elasticsearch/port",
+    "value": "9200"
+  },
+  {
+    "key": "mindora/config/elasticsearch/default_index",
+    "value": "mindora-documents"
+  },
+  {
+    "key": "mindora/config/qdrant/host",
+    "value": "qdrant"
+  },
+  {
+    "key": "mindora/config/qdrant/port",
+    "value": "6333"
+  },
+  {
+    "key": "mindora/config/monitoring/prometheus_url",
+    "value": "http://prometheus:9090"
+  },
+  {
+    "key": "mindora/config/monitoring/grafana_url",
+    "value": "http://grafana:3000"
+  },
+  {
+    "key": "mindora/config/logging/level",
+    "value": "INFO"
+  },
+  {
+    "key": "mindora/config/logging/elasticsearch_enabled",
+    "value": "true"
+  },
+  {
+    "key": "mindora/config/security/encryption_enabled",
+    "value": "true"
+  },
+  {
+    "key": "mindora/config/backup/enabled",
+    "value": "true"
+  },
+  {
+    "key": "mindora/config/backup/schedule",
+    "value": "0 2 * * *"
+  },
+  {
+    "key": "mindora/features/file_upload_enabled",
+    "value": "true"
+  },
+  {
+    "key": "mindora/features/search_enabled",
+    "value": "true"
+  },
+  {
+    "key": "mindora/features/vector_search_enabled",
+    "value": "true"
+  },
+  {
+    "key": "mindora/features/message_queue_enabled",
+    "value": "true"
+  },
+  {
+    "key": "mindora/limits/max_file_size_mb",
+    "value": "100"
+  },
+  {
+    "key": "mindora/limits/max_search_results",
+    "value": "1000"
+  },
+  {
+    "key": "mindora/limits/request_rate_per_minute",
+    "value": "1000"
+  }
+]

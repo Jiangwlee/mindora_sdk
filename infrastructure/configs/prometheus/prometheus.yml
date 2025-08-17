@@ -1,0 +1,174 @@
+# Mindora SDK 基础设施 Prometheus 配置
+# 收集所有基础设施服务的监控指标
+
+global:
+  scrape_interval: 15s          # 全局抓取间隔
+  evaluation_interval: 15s      # 规则评估间隔
+  scrape_timeout: 10s           # 抓取超时时间
+  
+  # 外部标签（用于联邦和远程存储）
+  external_labels:
+    cluster: 'mindora'
+    environment: 'development'
+    region: 'local'
+
+# 告警管理器配置（可选）
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+          # - alertmanager:9093
+
+# 规则文件
+rule_files:
+  - "rules/*.yml"
+
+# 数据抓取配置
+scrape_configs:
+  # Prometheus 自身监控
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+    scrape_interval: 5s
+    metrics_path: /metrics
+
+  # Node Exporter - 系统指标
+  - job_name: 'node-exporter'
+    static_configs:
+      - targets: ['node-exporter:9100']
+    scrape_interval: 15s
+    metrics_path: /metrics
+
+  # PostgreSQL 数据库监控
+  - job_name: 'postgres'
+    static_configs:
+      - targets: ['postgres-exporter:9187']
+    scrape_interval: 30s
+    metrics_path: /metrics
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: postgres-exporter:9187
+
+  # Redis 缓存监控
+  - job_name: 'redis'
+    static_configs:
+      - targets: ['redis-exporter:9121']
+    scrape_interval: 30s
+    metrics_path: /metrics
+
+  # MinIO 对象存储监控
+  - job_name: 'minio'
+    metrics_path: /minio/v2/metrics/cluster
+    scheme: http
+    static_configs:
+      - targets: ['minio:9000']
+    scrape_interval: 30s
+
+  # RabbitMQ 消息队列监控
+  - job_name: 'rabbitmq'
+    static_configs:
+      - targets: ['rabbitmq:15692']  # RabbitMQ Prometheus 插件端口
+    scrape_interval: 30s
+    metrics_path: /metrics
+
+  # Elasticsearch 搜索引擎监控
+  - job_name: 'elasticsearch'
+    static_configs:
+      - targets: ['elasticsearch-exporter:9114']
+    scrape_interval: 30s
+    metrics_path: /metrics
+    params:
+      es.uri: ['http://elasticsearch:9200']
+      es.all: ['true']
+      es.indices: ['true']
+      es.shards: ['true']
+
+  # Qdrant 向量数据库监控
+  - job_name: 'qdrant'
+    static_configs:
+      - targets: ['qdrant:6333']
+    scrape_interval: 30s
+    metrics_path: /metrics
+
+  # Consul 服务发现监控
+  - job_name: 'consul'
+    static_configs:
+      - targets: ['consul:8500']
+    scrape_interval: 30s
+    metrics_path: /v1/agent/metrics
+    params:
+      format: ['prometheus']
+
+  # Grafana 监控界面指标
+  - job_name: 'grafana'
+    static_configs:
+      - targets: ['grafana:3000']
+    scrape_interval: 30s
+    metrics_path: /metrics
+
+  # Nginx 反向代理监控
+  - job_name: 'nginx'
+    static_configs:
+      - targets: ['nginx-exporter:9113']
+    scrape_interval: 30s
+    metrics_path: /metrics
+
+  # Docker 容器监控 (cAdvisor)
+  - job_name: 'cadvisor'
+    static_configs:
+      - targets: ['cadvisor:8080']
+    scrape_interval: 15s
+    metrics_path: /metrics
+
+  # 自定义应用监控
+  - job_name: 'mindora-sdk'
+    static_configs:
+      - targets: ['mindora-app:8000']  # SDK应用端口
+    scrape_interval: 15s
+    metrics_path: /metrics
+    honor_labels: true
+
+  # Consul 服务发现集成
+  - job_name: 'consul-services'
+    consul_sd_configs:
+      - server: 'consul:8500'
+        services: []
+    relabel_configs:
+      - source_labels: [__meta_consul_service]
+        target_label: job
+      - source_labels: [__meta_consul_service]
+        target_label: service
+      - source_labels: [__meta_consul_node]
+        target_label: node
+      - source_labels: [__meta_consul_tags]
+        target_label: tags
+        regex: ,(.+),
+        replacement: ${1}
+      - source_labels: [__meta_consul_service_metadata_metrics_path]
+        target_label: __metrics_path__
+        regex: (.+)
+
+# 远程写入配置（可选 - 用于长期存储）
+# remote_write:
+#   - url: "http://thanos-receive:19291/api/v1/receive"
+#     queue_config:
+#       max_samples_per_send: 1000
+#       batch_send_deadline: 5s
+#       min_shards: 1
+#       max_shards: 10
+
+# 远程读取配置（可选）
+# remote_read:
+#   - url: "http://thanos-query:19192/api/v1/query"
+
+# 存储配置
+storage:
+  tsdb:
+    path: /prometheus
+    retention.time: 30d
+    retention.size: 10GB
+    wal-compression: true

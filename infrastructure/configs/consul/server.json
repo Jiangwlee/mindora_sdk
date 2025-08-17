@@ -1,0 +1,193 @@
+{
+  "datacenter": "dc1",
+  "data_dir": "/consul/data",
+  "log_level": "INFO",
+  "server": true,
+  "bootstrap_expect": 1,
+  "bind_addr": "0.0.0.0",
+  "client_addr": "0.0.0.0",
+  "retry_join": ["consul"],
+  "ui_config": {
+    "enabled": true
+  },
+  "connect": {
+    "enabled": true
+  },
+  "ports": {
+    "grpc": 8502,
+    "grpc_tls": 8503
+  },
+  "performance": {
+    "raft_multiplier": 1
+  },
+  "services": [
+    {
+      "name": "postgres",
+      "tags": ["database", "primary"],
+      "port": 5432,
+      "check": {
+        "tcp": "postgres:5432",
+        "interval": "30s",
+        "timeout": "10s"
+      },
+      "meta": {
+        "version": "16.4",
+        "environment": "development"
+      }
+    },
+    {
+      "name": "redis",
+      "tags": ["cache", "session"],
+      "port": 6379,
+      "check": {
+        "tcp": "redis:6379",
+        "interval": "30s",
+        "timeout": "10s"
+      },
+      "meta": {
+        "version": "7.4",
+        "environment": "development"
+      }
+    },
+    {
+      "name": "minio",
+      "tags": ["storage", "s3-compatible"],
+      "port": 9000,
+      "check": {
+        "http": "http://minio:9000/minio/health/live",
+        "interval": "30s",
+        "timeout": "10s"
+      },
+      "meta": {
+        "version": "RELEASE.2025-07-23T15-54-02Z",
+        "environment": "development",
+        "console_port": "9001"
+      }
+    },
+    {
+      "name": "rabbitmq",
+      "tags": ["messaging", "amqp"],
+      "port": 5672,
+      "check": {
+        "tcp": "rabbitmq:5672",
+        "interval": "30s",
+        "timeout": "10s"
+      },
+      "meta": {
+        "version": "4.1",
+        "environment": "development",
+        "management_port": "15672"
+      }
+    },
+    {
+      "name": "elasticsearch",
+      "tags": ["search", "analytics"],
+      "port": 9200,
+      "check": {
+        "http": "http://elasticsearch:9200/_cluster/health",
+        "interval": "30s",
+        "timeout": "10s"
+      },
+      "meta": {
+        "version": "8.19.2",
+        "environment": "development"
+      }
+    },
+    {
+      "name": "qdrant",
+      "tags": ["vector-db", "ml"],
+      "port": 6333,
+      "check": {
+        "http": "http://qdrant:6333/health",
+        "interval": "30s",
+        "timeout": "10s"
+      },
+      "meta": {
+        "version": "1.15.3",
+        "environment": "development"
+      }
+    },
+    {
+      "name": "grafana",
+      "tags": ["monitoring", "dashboard"],
+      "port": 3000,
+      "check": {
+        "http": "http://grafana:3000/api/health",
+        "interval": "30s",
+        "timeout": "10s"
+      },
+      "meta": {
+        "version": "11.3.0",
+        "environment": "development"
+      }
+    },
+    {
+      "name": "prometheus",
+      "tags": ["monitoring", "metrics"],
+      "port": 9090,
+      "check": {
+        "http": "http://prometheus:9090/-/healthy",
+        "interval": "30s",
+        "timeout": "10s"
+      },
+      "meta": {
+        "version": "3.5.0",
+        "environment": "development"
+      }
+    },
+    {
+      "name": "kibana",
+      "tags": ["logging", "analytics"],
+      "port": 5601,
+      "check": {
+        "http": "http://kibana:5601/api/status",
+        "interval": "30s",
+        "timeout": "10s"
+      },
+      "meta": {
+        "version": "8.19.2",
+        "environment": "development"
+      }
+    },
+    {
+      "name": "nginx",
+      "tags": ["proxy", "gateway"],
+      "port": 80,
+      "check": {
+        "http": "http://nginx/health",
+        "interval": "30s",
+        "timeout": "10s"
+      },
+      "meta": {
+        "version": "1.27",
+        "environment": "development"
+      }
+    }
+  ],
+  "acl": {
+    "enabled": false,
+    "default_policy": "allow",
+    "enable_token_persistence": true
+  },
+  "encrypt": "CONSUL_ENCRYPT_KEY_PLACEHOLDER",
+  "verify_incoming": false,
+  "verify_outgoing": false,
+  "verify_server_hostname": false,
+  "ca_file": "",
+  "cert_file": "",
+  "key_file": "",
+  "auto_encrypt": {
+    "allow_tls": true
+  },
+  "telemetry": {
+    "prometheus_retention_time": "60s",
+    "disable_hostname": false,
+    "metrics_prefix": "consul"
+  },
+  "limits": {
+    "http_max_conns_per_client": 200,
+    "https_handshake_timeout": "5s",
+    "rpc_handshake_timeout": "5s",
+    "rpc_max_conns_per_client": 100
+  }
+}

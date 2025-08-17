@@ -1,0 +1,222 @@
+# Mindora SDK 基础设施告警规则
+# 定义关键服务的监控告警
+
+groups:
+  # 系统资源告警
+  - name: system.rules
+    rules:
+      # 高CPU使用率告警
+      - alert: HighCPUUsage
+        expr: 100 - (avg by(instance) (irate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 80
+        for: 5m
+        labels:
+          severity: warning
+          service: system
+        annotations:
+          summary: "High CPU usage detected"
+          description: "CPU usage is above 80% for more than 5 minutes on {{ $labels.instance }}"
+
+      # 高内存使用率告警
+      - alert: HighMemoryUsage
+        expr: (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100 > 85
+        for: 5m
+        labels:
+          severity: warning
+          service: system
+        annotations:
+          summary: "High memory usage detected"
+          description: "Memory usage is above 85% for more than 5 minutes on {{ $labels.instance }}"
+
+      # 磁盘空间不足告警
+      - alert: DiskSpaceLow
+        expr: (1 - (node_filesystem_avail_bytes / node_filesystem_size_bytes)) * 100 > 90
+        for: 5m
+        labels:
+          severity: critical
+          service: system
+        annotations:
+          summary: "Disk space is running low"
+          description: "Disk space is above 90% on {{ $labels.device }} at {{ $labels.instance }}"
+
+  # 数据库服务告警
+  - name: database.rules
+    rules:
+      # PostgreSQL 连接数过高
+      - alert: PostgreSQLHighConnections
+        expr: sum(pg_stat_activity_count) by (instance) > 80
+        for: 5m
+        labels:
+          severity: warning
+          service: postgresql
+        annotations:
+          summary: "PostgreSQL high connection count"
+          description: "PostgreSQL connection count is above 80 on {{ $labels.instance }}"
+
+      # PostgreSQL 数据库大小增长过快
+      - alert: PostgreSQLDatabaseSizeGrowth
+        expr: increase(pg_database_size_bytes[1h]) > 1073741824  # 1GB
+        for: 0m
+        labels:
+          severity: warning
+          service: postgresql
+        annotations:
+          summary: "PostgreSQL database size growing rapidly"
+          description: "Database {{ $labels.datname }} has grown by more than 1GB in the last hour"
+
+      # Redis 内存使用率过高
+      - alert: RedisHighMemoryUsage
+        expr: (redis_memory_used_bytes / redis_memory_max_bytes) * 100 > 90
+        for: 5m
+        labels:
+          severity: warning
+          service: redis
+        annotations:
+          summary: "Redis high memory usage"
+          description: "Redis memory usage is above 90% on {{ $labels.instance }}"
+
+      # Redis 连接数过高
+      - alert: RedisHighConnections
+        expr: redis_connected_clients > 100
+        for: 5m
+        labels:
+          severity: warning
+          service: redis
+        annotations:
+          summary: "Redis high connection count"
+          description: "Redis connection count is above 100 on {{ $labels.instance }}"
+
+  # 搜索引擎告警
+  - name: search.rules
+    rules:
+      # Elasticsearch 集群状态异常
+      - alert: ElasticsearchClusterRed
+        expr: elasticsearch_cluster_health_status{color="red"} == 1
+        for: 0m
+        labels:
+          severity: critical
+          service: elasticsearch
+        annotations:
+          summary: "Elasticsearch cluster status is red"
+          description: "Elasticsearch cluster {{ $labels.cluster }} status is red"
+
+      # Elasticsearch 磁盘使用率过高
+      - alert: ElasticsearchHighDiskUsage
+        expr: elasticsearch_filesystem_data_used_percent > 85
+        for: 5m
+        labels:
+          severity: warning
+          service: elasticsearch
+        annotations:
+          summary: "Elasticsearch high disk usage"
+          description: "Elasticsearch disk usage is above 85% on {{ $labels.instance }}"
+
+      # Qdrant 内存使用率过高
+      - alert: QdrantHighMemoryUsage
+        expr: qdrant_app_info{} # 需要根据实际Qdrant指标调整
+        for: 5m
+        labels:
+          severity: warning
+          service: qdrant
+        annotations:
+          summary: "Qdrant high memory usage"
+          description: "Qdrant memory usage is high on {{ $labels.instance }}"
+
+  # 消息队列告警
+  - name: messaging.rules
+    rules:
+      # RabbitMQ 队列消息积压
+      - alert: RabbitMQQueueBacklog
+        expr: rabbitmq_queue_messages > 1000
+        for: 5m
+        labels:
+          severity: warning
+          service: rabbitmq
+        annotations:
+          summary: "RabbitMQ queue backlog detected"
+          description: "Queue {{ $labels.queue }} has more than 1000 messages on {{ $labels.instance }}"
+
+      # RabbitMQ 连接数过高
+      - alert: RabbitMQHighConnections
+        expr: rabbitmq_connections > 100
+        for: 5m
+        labels:
+          severity: warning
+          service: rabbitmq
+        annotations:
+          summary: "RabbitMQ high connection count"
+          description: "RabbitMQ connection count is above 100 on {{ $labels.instance }}"
+
+  # 对象存储告警
+  - name: storage.rules
+    rules:
+      # MinIO 磁盘使用率过高
+      - alert: MinIOHighDiskUsage
+        expr: (minio_disk_storage_used_bytes / minio_disk_storage_total_bytes) * 100 > 85
+        for: 5m
+        labels:
+          severity: warning
+          service: minio
+        annotations:
+          summary: "MinIO high disk usage"
+          description: "MinIO disk usage is above 85% on {{ $labels.instance }}"
+
+      # MinIO API 错误率过高
+      - alert: MinIOHighErrorRate
+        expr: rate(minio_s3_requests_errors_total[5m]) / rate(minio_s3_requests_total[5m]) > 0.05
+        for: 5m
+        labels:
+          severity: warning
+          service: minio
+        annotations:
+          summary: "MinIO high error rate"
+          description: "MinIO API error rate is above 5% on {{ $labels.instance }}"
+
+  # 服务可用性告警
+  - name: availability.rules
+    rules:
+      # 服务下线告警
+      - alert: ServiceDown
+        expr: up == 0
+        for: 1m
+        labels:
+          severity: critical
+          service: "{{ $labels.job }}"
+        annotations:
+          summary: "Service is down"
+          description: "Service {{ $labels.job }} is down on {{ $labels.instance }}"
+
+      # 服务响应时间过长
+      - alert: HighResponseTime
+        expr: histogram_quantile(0.95, rate(prometheus_http_request_duration_seconds_bucket[5m])) > 1.0
+        for: 5m
+        labels:
+          severity: warning
+          service: "{{ $labels.job }}"
+        annotations:
+          summary: "High response time detected"
+          description: "95% of requests are taking more than 1 second on {{ $labels.instance }}"
+
+  # 应用级别告警
+  - name: application.rules
+    rules:
+      # SDK 应用错误率过高
+      - alert: SDKHighErrorRate
+        expr: rate(http_requests_total{status=~"5.."}[5m]) / rate(http_requests_total[5m]) > 0.05
+        for: 5m
+        labels:
+          severity: warning
+          service: mindora-sdk
+        annotations:
+          summary: "Mindora SDK high error rate"
+          description: "SDK error rate is above 5% on {{ $labels.instance }}"
+
+      # 数据库连接池耗尽
+      - alert: DatabaseConnectionPoolExhausted
+        expr: db_connections_active / db_connections_max > 0.9
+        for: 2m
+        labels:
+          severity: critical
+          service: mindora-sdk
+        annotations:
+          summary: "Database connection pool nearly exhausted"
+          description: "Database connection pool usage is above 90% on {{ $labels.instance }}"

@@ -7,7 +7,7 @@ name = "mindora-sdk"
 version = "0.1.0"
 description = "AI基础设施统一SDK，为多个AI应用提供统一的基础服务接口"
 authors = [
-    {name = "Mindora Team", email = "team@mindora.ai"}
+    {name = "Bruce Li", email = "jiangwlee@163.com"}
 ]
 readme = "README.md"
 license = "MIT"
@@ -69,10 +69,9 @@ docs = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/mindora/mindora-sdk"
-Repository = "https://github.com/mindora/mindora-sdk"
-Documentation = "https://mindora-sdk.readthedocs.io"
-"Bug Reports" = "https://github.com/mindora/mindora-sdk/issues"
+Homepage = "https://github.com/jiangwlee/mindora-sdk"
+Repository = "https://github.com/jiangwlee/mindora-sdk"
+"Bug Reports" = "https://github.com/jiangwlee/mindora-sdk/issues"
 
 [tool.hatch.build.targets.sdist]
 include = [
