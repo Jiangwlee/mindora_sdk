@@ -145,7 +145,7 @@ services:
       - mindora_network
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:6333/health"]
+      test: ["CMD", "bash", "-c", "echo > /dev/tcp/localhost/6333"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -191,7 +191,7 @@ services:
       - "${PROMETHEUS_PORT:-9090}:9090"
     volumes:
       - ../configs/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
-      - ${MINDORA_DATA_ROOT}/prometheus:/prometheus
+      - prometheus_data:/prometheus
     networks:
       - mindora_network
     restart: unless-stopped
@@ -237,8 +237,8 @@ services:
     container_name: mindora_kibana
     environment:
       ELASTICSEARCH_HOSTS: http://elasticsearch:9200
-      ELASTICSEARCH_USERNAME: ${ELASTIC_USERNAME:-}
-      ELASTICSEARCH_PASSWORD: ${ELASTIC_PASSWORD:-}
+      ELASTICSEARCH_USERNAME: ""
+      ELASTICSEARCH_PASSWORD: ""
       LOGGING_QUIET: true
     ports:
       - "${KIBANA_PORT:-5601}:5601"
@@ -289,3 +289,7 @@ networks:
     ipam:
       config:
         - subnet: 172.20.0.0/16
+
+volumes:
+  prometheus_data:
+    driver: local

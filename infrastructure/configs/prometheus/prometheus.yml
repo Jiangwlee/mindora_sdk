@@ -146,8 +146,8 @@ scrape_configs:
         target_label: node
       - source_labels: [__meta_consul_tags]
         target_label: tags
-        regex: ,(.+),
-        replacement: ${1}
+        regex: ',(.+),'
+        replacement: '${1}'
       - source_labels: [__meta_consul_service_metadata_metrics_path]
         target_label: __metrics_path__
         regex: (.+)
@@ -165,10 +165,8 @@ scrape_configs:
 # remote_read:
 #   - url: "http://thanos-query:19192/api/v1/query"
 
-# 存储配置
-storage:
-  tsdb:
-    path: /prometheus
-    retention.time: 30d
-    retention.size: 10GB
-    wal-compression: true
+# 存储配置通过命令行参数设置
+# --storage.tsdb.path=/prometheus
+# --storage.tsdb.retention.time=30d
+# --storage.tsdb.retention.size=10GB
+# --storage.tsdb.wal-compression=true
